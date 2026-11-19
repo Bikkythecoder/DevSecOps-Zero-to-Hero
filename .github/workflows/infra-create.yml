@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   deploy:
+    name: Deploy Infrastructure
     runs-on: ubuntu-latest
 
     defaults:
@@ -18,11 +19,15 @@ jobs:
         working-directory: ./terraform
 
     steps:
-      # 1. Checkout repository
+      # 1. Checkout source code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Debug GitHub OIDC claims
+      # 2. Install jq
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      # 3. Debug GitHub OIDC claims
       - name: Debug GitHub OIDC Claims
         shell: bash
         run: |
@@ -45,7 +50,7 @@ jobs:
 
           unset TOKEN PAYLOAD
 
-      # 3. Authenticate with HashiCorp Vault
+      # 4. Authenticate with Vault
       - name: Fetch AWS Credentials from Vault
         uses: hashicorp/vault-action@v3
         with:
@@ -58,5 +63,26 @@ jobs:
             aws/creds/terraform-role access_key | AWS_ACCESS_KEY_ID ;
             aws/creds/terraform-role secret_key | AWS_SECRET_ACCESS_KEY
 
-      # 4. Install Terraform
-      - name: Setup
+      # 5. Verify AWS authentication
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
+      # 6. Install Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # 7. Initialize Terraform
+      - name: Terraform Init
+        run: terraform init
+
+      # 8. Validate Terraform
+      - name: Terraform Validate
+        run: terraform validate
+
+      # 9. Generate Terraform plan
+      - name: Terraform Plan
+        run: terraform plan
+
+      # 10. Apply infrastructure
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
